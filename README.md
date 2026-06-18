@@ -1,1 +1,1 @@
-# up-project-stock-data
+# project-stock-data
