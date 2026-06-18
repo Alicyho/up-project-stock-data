@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: stock-data-service
+
+  # 資料庫連線設定
+  datasource:
+    url: jdbc:postgresql://localhost:5432/stock_db
+    username: postgres
+    password: Admin12345          # ← 請改成你自己的密碼！
+
+  # JPA 設定
+  jpa:
+    hibernate:
+      ddl-auto: none              # 表格已存在，不要讓 Hibernate 自動改結構
+    show-sql: true                # 在 console 顯示執行的 SQL（方便學習）
+    properties:
+      hibernate:
+        format_sql: true
+        physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        globally_quoted_identifiers: true
+        globally_quoted_identifiers_skip_column_definitions: true
+
+# 伺服器設定
+server:
+  port: 8080                    # 預設埠號，之後前端會連這個埠
+
+# Finnhub 公司資料 API 設定
+# 申請免費 key：https://finnhub.io/  → Dashboard 取得 API Key
+# 用環境變數覆寫即可：export FINNHUB_API_KEY=你的key
+# 若留空，後端會自動退回使用資料庫的基本資料（logo/country/ipo 等會是空值）
+finnhub:
+  api-key: d8oc1opr01qrbffkop80d8oc1opr01qrbffkop8g
+  base-url: https://finnhub.io/api/v1

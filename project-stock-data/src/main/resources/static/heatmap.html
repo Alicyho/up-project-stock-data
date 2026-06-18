@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Market Heatmap</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --deep-dark-blue-bg: #060a15;
+            --dark-blue-bg: #060a15;
+            --bg-deep: #060a15;
+            --bg-panel: #0a0e1a;
+            --bg-panel-elevated: #0d1224;
+            --bg-heatmap: #060a15;
+            --glass-bg: #0a0e1a;
+            --glow-start: rgba(100, 60, 255, 0.4);
+            --glow-blue: rgba(60, 100, 255, 0.28);
+            --glow-end: rgba(100, 60, 255, 0);
+            --glass-border: rgba(255, 255, 255, 0.06);
+            --glass-border-soft: rgba(255, 255, 255, 0.04);
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --green: #22c55e;
+            --green-dim: rgba(34, 197, 94, 0.1);
+            --red: #ef4444;
+            --red-dim: rgba(239, 68, 68, 0.1);
+            --accent-glow: rgba(34, 197, 94, 0.35);
+            --font-ui: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            --fw-regular: 400;
+            --fw-medium: 500;
+            --fw-semibold: 600;
+            --fw-bold: 700;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html {
+            background: var(--dark-blue-bg);
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: var(--font-ui);
+            font-weight: var(--fw-regular);
+            background-color: var(--dark-blue-bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ==================== 背景 + 發光效果（最終版） ==================== */
+
+.page-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.page-bg__base {
+    position: absolute;
+    inset: 0;
+    background: #060a15;
+    background-image: 
+        radial-gradient(ellipse 120% 90% at 50% 50%, transparent 30%, rgba(2, 4, 10, 0.6) 100%),
+        linear-gradient(135deg, #040810 0%, #060a15 45%, #0a0e1a 100%);
+}
+
+.page-bg__glows {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
+.oval-glow {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* 主發光 - 藍紫色（強烈推薦） */
+.oval-glow--primary {
+    right: -18%;
+    top: 5%;
+    width: 820px;
+    height: 620px;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(100, 60, 255, 0.45) 0%,
+        rgba(100, 60, 255, 0.22) 38%,
+        rgba(100, 60, 255, 0) 72%
+    );
+    filter: blur(160px);
+    mix-blend-mode: screen;
+}
+
+/* 輔助發光 */
+.oval-glow--accent {
+    right: 5%;
+    top: 32%;
+    width: 580px;
+    height: 480px;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(60, 120, 255, 0.32) 0%,
+        rgba(60, 120, 255, 0.12) 45%,
+        transparent 75%
+    );
+    filter: blur(130px);
+    mix-blend-mode: screen;
+}
+
+        body::before { display: none; }
+
+        .glass,
+        .stat-card {
+            background: linear-gradient(165deg, var(--bg-panel-elevated) 0%, var(--bg-panel) 100%);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+        }
+
+        .glass {
+            border-radius: 14px;
+        }
+
+        .app {
+            position: relative;
+            z-index: 1;
+            max-width: 1720px;
+            margin: 0 auto;
+            padding: 1rem 1.25rem 1.5rem;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.9rem 1.2rem;
+            border-radius: 14px;
+            margin-bottom: 0.85rem;
+        }
+
+        .brand h1 {
+            font-family: var(--font-ui);
+            font-size: 1.45rem;
+            font-weight: var(--fw-bold);
+            letter-spacing: -0.03em;
+            color: var(--text);
+        }
+
+        .brand p {
+            font-family: var(--font-ui);
+            font-size: 0.76rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .live-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: var(--fw-semibold);
+            color: var(--green);
+            padding: 0.35rem 0.75rem;
+            border-radius: 999px;
+            background: var(--green-dim);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 10px var(--accent-glow);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.9); }
+        }
+
+        .btn {
+            font-family: var(--font-ui);
+            font-size: 0.76rem;
+            font-weight: var(--fw-medium);
+            padding: 0.48rem 1rem;
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-panel);
+            color: var(--text-muted);
+        }
+
+        .btn:hover {
+            background: var(--bg-panel-elevated);
+            color: var(--text);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .last-update {
+            font-family: var(--font-ui);
+            font-size: 0.7rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-dim);
+        }
+
+        /* ── Stats overview ── */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.65rem;
+            margin-bottom: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .stat-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.7rem;
+            padding: 0.8rem 0.95rem;
+            border-radius: 12px;
+        }
+
+        .stat-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background: var(--dark-blue-bg);
+            border: 1px solid var(--glass-border-soft);
+        }
+
+        .stat-icon svg { width: 18px; height: 18px; }
+
+        .stat-icon.mcap svg { stroke: #60a5fa; }
+        .stat-icon.up svg { stroke: var(--green); }
+        .stat-icon.down svg { stroke: var(--red); }
+        .stat-icon.neutral svg { stroke: var(--text-dim); }
+
+        .stat-label {
+            font-family: var(--font-ui);
+            font-size: 0.62rem;
+            font-weight: var(--fw-regular);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+        }
+
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: 1.15rem;
+            font-weight: var(--fw-bold);
+            margin-top: 0.15rem;
+            color: var(--text);
+            line-height: 1.2;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat-value.up { color: var(--green); }
+        .stat-value.down { color: var(--red); }
+        .stat-value.neutral { color: var(--text-muted); }
+
+        .stat-sub {
+            font-family: var(--font-ui);
+            font-size: 0.68rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-dim);
+            margin-top: 0.12rem;
+        }
+
+        /* ── Chart shell ── */
+        .chart-shell {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            background: var(--bg-heatmap);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+        }
+
+        .chart-inner {
+            background: var(--bg-heatmap);
+        }
+
+        #heatmap {
+            width: 100%;
+            height: min(75vh, 800px);
+            min-height: 480px;
+            position: relative;
+            background: var(--bg-heatmap);
+        }
+
+        #heatmap svg { display: block; width: 100%; height: 100%; }
+
+        .sector-header-bg { pointer-events: none; }
+
+        .sector-label {
+            pointer-events: none;
+            font-family: var(--font-ui);
+            font-weight: var(--fw-bold);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            fill: #e2e8f0;
+        }
+
+        .cell-stock { cursor: pointer; }
+
+        .cell-stock rect.cell-bg {
+            stroke: rgba(5, 8, 15, 0.85);
+            stroke-width: 1px;
+            transition: filter 0.15s ease, stroke 0.15s ease, stroke-width 0.15s ease;
+        }
+
+        .cell-stock:hover rect.cell-bg {
+            stroke: rgba(34, 197, 94, 0.85);
+            stroke-width: 2px;
+            filter: brightness(1.18) saturate(1.08) drop-shadow(0 0 14px rgba(34, 197, 94, 0.35));
+        }
+
+        .cell-symbol {
+            fill: #ffffff;
+            font-family: var(--font-ui);
+            font-weight: var(--fw-bold);
+            pointer-events: none;
+            dominant-baseline: middle;
+            text-anchor: middle;
+            letter-spacing: 0.02em;
+            stroke: rgba(0, 0, 0, 0.85);
+            stroke-width: 0.4px;
+            paint-order: stroke fill;
+        }
+
+        .cell-change {
+            fill: #ffffff;
+            font-family: var(--font-mono);
+            font-weight: var(--fw-bold);
+            pointer-events: none;
+            dominant-baseline: middle;
+            text-anchor: middle;
+            font-variant-numeric: tabular-nums;
+            stroke: rgba(0, 0, 0, 0.85);
+            stroke-width: 0.4px;
+            paint-order: stroke fill;
+        }
+
+        .cell-price {
+            fill: #ffffff;
+            font-family: var(--font-mono);
+            font-weight: var(--fw-bold);
+            pointer-events: none;
+            dominant-baseline: middle;
+            text-anchor: middle;
+            stroke: none;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Footer ── */
+        .chart-footer {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.8rem 1.1rem;
+            border-top: 1px solid var(--glass-border);
+            background: var(--bg-heatmap);
+        }
+
+        .gradient-scale { flex: 1; min-width: 220px; }
+
+        .scale-title {
+            font-family: var(--font-ui);
+            font-size: 0.65rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 0.35rem;
+        }
+
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            font-weight: var(--fw-medium);
+            color: var(--text-dim);
+            margin-bottom: 0.3rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .scale-bar {
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #7f1d1d, #ef4444, #52525b, #22c55e, #15803d);
+            border: 1px solid var(--glass-border-soft);
+        }
+
+        .sentiment {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            min-width: 240px;
+        }
+
+        .sentiment-label {
+            font-family: var(--font-ui);
+            font-size: 0.65rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            white-space: nowrap;
+        }
+
+        .sentiment-track {
+            flex: 1;
+            height: 10px;
+            background: #0d1224;
+            border-radius: 999px;
+            overflow: hidden;
+            border: 1px solid var(--glass-border-soft);
+        }
+
+        .sentiment-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+            transition: width 0.4s ease;
+        }
+
+        .sentiment-pct {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: var(--fw-bold);
+            color: var(--green);
+            min-width: 2.5rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Tooltip ── */
+        #tooltip {
+            position: absolute;
+            background: linear-gradient(165deg, #0d1224, #0a0e1a);
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            font-family: var(--font-ui);
+            font-weight: var(--fw-regular);
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.76rem;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+            min-width: 140px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+            line-height: 1.5;
+        }
+
+        #tooltip .tt-symbol {
+            font-family: var(--font-ui);
+            font-weight: var(--fw-bold);
+            font-size: 1rem;
+            letter-spacing: 0.02em;
+        }
+
+        #tooltip .tt-price-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }
+
+        #tooltip .tt-price {
+            font-family: var(--font-mono);
+            font-weight: var(--fw-bold);
+            font-size: 0.88rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #tooltip .tt-change {
+            font-family: var(--font-mono);
+            font-weight: var(--fw-bold);
+            font-size: 0.82rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #tooltip .tt-mcap {
+            font-family: var(--font-ui);
+            font-weight: var(--fw-regular);
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
+        /* ── Loading ── */
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(5, 8, 15, 0.94);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .loading-overlay.show { display: flex; }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 2px solid rgba(148, 163, 184, 0.12);
+            border-top-color: var(--green);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-text {
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-muted);
+        }
+
+        .top-section { display: none; }
+
+        /* ── Side Panel ── */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: none;
+            align-items: flex-start;
+            justify-content: flex-end;
+            padding: 0.75rem;
+            background: rgba(5, 8, 15, 0.78);
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-overlay.show { display: flex; opacity: 1; }
+
+        .modal {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            height: calc(100vh - 1.5rem);
+            overflow-y: auto;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #0d1224 0%, #0a0e1a 100%);
+            border: 1px solid var(--glass-border);
+            box-shadow: -8px 0 48px rgba(0, 0, 0, 0.65);
+            transform: translateX(calc(100% + 1rem));
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-overlay.show .modal { transform: translateX(0); }
+
+        .modal-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.85rem;
+            padding: 1.15rem 1.15rem 0.9rem;
+            border-bottom: 1px solid var(--glass-border-soft);
+        }
+
+        .modal-logo {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            object-fit: contain;
+            background: #fff;
+            padding: 5px;
+            flex-shrink: 0;
+        }
+
+        .modal-logo-fallback {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-ui);
+            font-weight: var(--fw-bold);
+            font-size: 1.3rem;
+            color: var(--dark-blue-bg);
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            flex-shrink: 0;
+        }
+
+        .modal-title { flex: 1; min-width: 0; }
+
+        .modal-title .ticker {
+            font-family: var(--font-ui);
+            font-weight: var(--fw-bold);
+            font-size: 1.3rem;
+            letter-spacing: 0.01em;
+        }
+
+        .modal-title .company {
+            font-family: var(--font-ui);
+            font-size: 0.82rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-muted);
+            margin-top: 0.05rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .modal-price-row {
+            display: flex;
+            align-items: baseline;
+            gap: 0.6rem;
+            margin-top: 0.4rem;
+        }
+
+        .modal-price {
+            font-family: var(--font-mono);
+            font-size: 1.4rem;
+            font-weight: var(--fw-bold);
+            letter-spacing: -0.02em;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .modal-change {
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            font-weight: var(--fw-bold);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .modal-profile-src {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-top: 0.35rem;
+            font-family: var(--font-ui);
+            font-size: 0.62rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-dim);
+        }
+
+        .src-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 6px var(--accent-glow);
+            flex-shrink: 0;
+        }
+
+        .src-dot.muted { background: var(--text-dim); box-shadow: none; }
+
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border-soft);
+            background: var(--dark-blue-bg);
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .modal-close:hover { background: var(--bg-panel-elevated); color: var(--text); }
+
+        .modal-body { padding: 0.9rem 1.15rem 1.15rem; }
+
+        .info-table {
+            border: 1px solid var(--glass-border-soft);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 0.85rem;
+            font-family: var(--font-ui);
+            font-size: 0.76rem;
+        }
+
+        .info-table-head,
+        .info-table-row {
+            display: grid;
+            grid-template-columns: 1fr 1.4fr 1fr;
+        }
+
+        .info-table-head {
+            background: var(--dark-blue-bg);
+            border-bottom: 1px solid var(--glass-border-soft);
+        }
+
+        .info-table-head span,
+        .info-table-row span {
+            padding: 0.5rem 0.6rem;
+            border-right: 1px solid var(--glass-border-soft);
+        }
+
+        .info-table-head span:last-child,
+        .info-table-row span:last-child { border-right: none; }
+
+        .info-table-head span {
+            font-family: var(--font-ui);
+            font-size: 0.6rem;
+            font-weight: var(--fw-regular);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-dim);
+        }
+
+        .info-table-row span {
+            font-family: var(--font-ui);
+            font-weight: var(--fw-medium);
+        }
+
+        .info-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+            font-family: var(--font-ui);
+            font-size: 0.66rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-dim);
+            margin-bottom: 0.85rem;
+        }
+
+        .info-meta b { color: var(--text-muted); font-weight: var(--fw-medium); }
+
+        .chart-block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.45rem;
+        }
+
+        .chart-block-header .t {
+            font-family: var(--font-ui);
+            font-size: 0.8rem;
+            font-weight: var(--fw-medium);
+        }
+
+        .chart-tabs { display: flex; gap: 0.2rem; }
+
+        .chart-tab {
+            font-family: var(--font-mono);
+            font-size: 0.62rem;
+            font-weight: var(--fw-medium);
+            padding: 0.18rem 0.42rem;
+            border-radius: 5px;
+            color: var(--text-dim);
+            border: 1px solid transparent;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .chart-tab.active {
+            color: var(--text);
+            background: var(--dark-blue-bg);
+            border-color: var(--glass-border-soft);
+        }
+
+        .chart-tab.disabled { opacity: 0.3; }
+
+        .chart-block-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 0.3rem;
+        }
+
+        .chart-block-footer .src {
+            font-family: var(--font-ui);
+            font-size: 0.6rem;
+            font-weight: var(--fw-regular);
+            color: var(--text-dim);
+        }
+
+        #candleChart {
+            width: 100%;
+            height: 240px;
+            border-radius: 10px;
+            background: var(--dark-blue-bg);
+            border: 1px solid var(--glass-border-soft);
+            position: relative;
+        }
+
+        .modal-loading {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(5, 8, 15, 0.88);
+            border-radius: 10px;
+            z-index: 5;
+        }
+
+        .modal-link {
+            display: inline-block;
+            margin-top: 0.85rem;
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: var(--fw-medium);
+            color: var(--green);
+            text-decoration: none;
+        }
+
+        #heatmap svg text {
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+        .modal-link:hover { text-decoration: underline; }
+
+        @media (max-width: 640px) {
+            .modal { max-width: 100%; height: calc(100vh - 1rem); border-radius: 14px; }
+            .app { padding: 0.75rem; }
+            #heatmap { min-height: 320px; }
+            .sentiment { min-width: 100%; }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+    <div class="page-bg" aria-hidden="true">
+        <div class="page-bg__base"></div>
+        <div class="page-bg__glows">
+            <div class="oval-glow oval-glow--primary"></div>
+            <div class="oval-glow oval-glow--accent"></div>
+        </div>
+    </div>
+    <div class="app">
+        <header class="header glass">
+            <div class="brand">
+                <h1>Stock Market Heatmap</h1>
+                <p>S&amp;P 500 &bull; Grouped by Sector &bull; Size = Market Cap</p>
+            </div>
+            <div class="header-actions">
+                <span class="live-pill"><span class="live-dot"></span> Live</span>
+                <button class="btn" onclick="loadHeatmap()">&#8635; Reload</button>
+                <span id="lastUpdate" class="last-update"></span>
+            </div>
+        </header>
+
+        <div class="stats-bar" id="statsBar">
+            <div class="stat-card">
+                <div class="stat-icon mcap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-label">Market Cap</div>
+                    <div class="stat-value" id="statMcap">—</div>
+                    <div class="stat-sub" id="statCount">Total</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon up">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 19V5M5 12l7-7 7 7"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-label">Gainers</div>
+                    <div class="stat-value up" id="statGainers">—</div>
+                    <div class="stat-sub" id="statGainersPct">—</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon down">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M5 12l7 7 7-7"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-label">Losers</div>
+                    <div class="stat-value down" id="statLosers">—</div>
+                    <div class="stat-sub" id="statLosersPct">—</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon neutral">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round">
+                        <path d="M5 12h14"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="stat-label">Neutral</div>
+                    <div class="stat-value neutral" id="statNeutral">—</div>
+                    <div class="stat-sub" id="statNeutralPct">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-shell">
+            <div class="chart-inner">
+                <div id="heatmap">
+                    <div id="tooltip"></div>
+                    <div id="loadingOverlay" class="loading-overlay">
+                        <div class="spinner"></div>
+                        <span class="loading-text">Loading market data…</span>
+                    </div>
+                </div>
+                <div class="chart-footer">
+                    <div class="gradient-scale">
+                        <div class="scale-title">Performance (%)</div>
+                        <div class="scale-labels">
+                            <span>-3%</span><span>-1%</span><span>0%</span><span>+1%</span><span>+3%</span>
+                        </div>
+                        <div class="scale-bar"></div>
+                    </div>
+                    <div class="sentiment">
+                        <span class="sentiment-label">Bullish Sentiment</span>
+                        <div class="sentiment-track">
+                            <div class="sentiment-fill" id="sentimentFill" style="width:50%"></div>
+                        </div>
+                        <span class="sentiment-pct" id="sentimentPct">50%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Side Panel -->
+    <div id="companyModal" class="modal-overlay" onclick="if(event.target===this) closeCompanyModal()">
+        <div class="modal" role="dialog" aria-modal="true">
+            <div class="modal-header">
+                <div id="modalLogoWrap"></div>
+                <div class="modal-title">
+                    <div class="ticker" id="modalTicker">—</div>
+                    <div class="company" id="modalCompany">—</div>
+                    <div class="modal-price-row">
+                        <span class="modal-price" id="modalPrice">—</span>
+                        <span class="modal-change" id="modalChange">—</span>
+                    </div>
+                    <span class="modal-profile-src" id="modalProfileSrc"></span>
+                </div>
+                <button class="modal-close" onclick="closeCompanyModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="info-table">
+                    <div class="info-table-head">
+                        <span>Country</span>
+                        <span>Industry</span>
+                        <span>Market Cap</span>
+                    </div>
+                    <div class="info-table-row">
+                        <span id="modalCountry">—</span>
+                        <span id="modalIndustry">—</span>
+                        <span id="modalMcap">—</span>
+                    </div>
+                </div>
+                <div class="info-meta">
+                    <span>Currency: <b id="modalCurrency">—</b></span>
+                    <span>IPO: <b id="modalIpo">—</b></span>
+                    <span>Exchange: <b id="modalExch2">—</b></span>
+                </div>
+                <div class="chart-block-header">
+                    <span class="t">Price Chart</span>
+                    <div class="chart-tabs">
+                        <span class="chart-tab disabled">1D</span>
+                        <span class="chart-tab disabled">5D</span>
+                        <span class="chart-tab disabled">1M</span>
+                        <span class="chart-tab disabled">3M</span>
+                        <span class="chart-tab active">6M</span>
+                    </div>
+                </div>
+                <div id="candleChart">
+                    <div class="modal-loading" id="modalLoading">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
+                <div class="chart-block-footer">
+                    <span class="src" id="modalChartSrc"></span>
+                </div>
+                <a class="modal-link" id="modalWeb" href="#" target="_blank" rel="noopener" style="display:none">Visit website ↗</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const FONT_UI = '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const FONT_MONO = '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+        const LOGO_URL = sym => `https://financialmodelingprep.com/image-stock/${sym}.png`;
+
+        function demoChange(symbol) {
+            let h = 0;
+            for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) | 0;
+            return (h % 1600) / 100 - 8;
+        }
+
+        function enrichStock(stock) {
+            const change = stock.changePercent ?? stock.change ?? stock.dayChange ?? demoChange(stock.symbol);
+            return { ...stock, changePercent: Number(change) };
+        }
+
+        /* 顏色比例尺（依漲跌率深淺） */
+        function getColor(change) {
+            const v = Number(change) || 0;
+            if      (v >=  3)  return "#0d6b3b";
+            else if (v >=  1)  return "#4AAB20";
+            else if (v >= -1)  return "#5e6b64";
+            else if (v >  -3)  return "#e32938";
+            else               return "#910c17";
+        }
+
+        function getChangeTextColor(change) {
+            const v = Number(change) || 0;
+            if (v > 0.05) return "#22c55e";
+            if (v < -0.05) return "#ef4444";
+            return "#94a3b8";
+        }
+
+        function appendCellChange(g, x, y, size, label, changeVal) {
+            return g.append("text")
+                .attr("class", "cell-change")
+                .attr("x", x).attr("y", y)
+                .attr("font-size", size + "px")
+                .attr("fill", getChangeTextColor(changeVal))
+                .text(label);
+        }
+
+        /* Finviz-style: tight centered stack (Symbol / MCap / Change%) */
+        function appendCellStack(g, cx, cellH, rows) {
+            const GAP = 1;
+            const totalH = rows.reduce((sum, r, i) => sum + r.size + (i > 0 ? GAP : 0), 0);
+            let y = (cellH - totalH) / 2;
+            rows.forEach((row, i) => {
+                if (i > 0) y += GAP;
+                const t = g.append("text")
+                    .attr("class", row.cls)
+                    .attr("x", cx)
+                    .attr("y", y + row.size / 2)
+                    .attr("font-size", row.size + "px")
+                    .text(row.text);
+                if (row.fill) t.attr("fill", row.fill);
+                y += row.size;
+            });
+        }
+
+        function formatMcapShort(n) {
+            if (!n || n <= 0) return "—";
+            if (n >= 1e12) return "$" + (n / 1e12).toFixed(1) + "T";
+            if (n >= 1e9) return "$" + (n / 1e9).toFixed(0) + "B";
+            return "$" + (n / 1e6).toFixed(0) + "M";
+        }
+
+        function truncate(str, max) {
+            if (!str) return "";
+            return str.length > max ? str.slice(0, max - 1) + "…" : str;
+        }
+
+        function updateStats(stocks) {
+            const total = stocks.length;
+            const gainers = stocks.filter(s => s.changePercent > 0.05).length;
+            const losers = stocks.filter(s => s.changePercent < -0.05).length;
+            const neutral = total - gainers - losers;
+            const totalMcap = stocks.reduce((a, s) => a + (s.marketCap || 0), 0);
+            const bullish = Math.round((gainers / total) * 100);
+
+            document.getElementById("statMcap").textContent = formatMcapShort(totalMcap);
+            document.getElementById("statCount").textContent = total + " stocks · Total";
+            document.getElementById("statGainers").textContent = gainers;
+            document.getElementById("statGainersPct").textContent = ((gainers / total) * 100).toFixed(1) + "% of stocks";
+            document.getElementById("statLosers").textContent = losers;
+            document.getElementById("statLosersPct").textContent = ((losers / total) * 100).toFixed(1) + "% of stocks";
+            document.getElementById("statNeutral").textContent = neutral;
+            document.getElementById("statNeutralPct").textContent = ((neutral / total) * 100).toFixed(1) + "% of stocks";
+            document.getElementById("sentimentFill").style.width = bullish + "%";
+            document.getElementById("sentimentPct").textContent = bullish + "%";
+        }
+
+        function formatPct(value) {
+            const n = Number(value);
+            if (Number.isNaN(n)) return "N/A";
+            return (n > 0 ? "+" : "") + n.toFixed(2) + "%";
+        }
+
+        function formatPrice(value) {
+            const n = Number(value);
+            if (!n || Number.isNaN(n) || n <= 0) return null;
+            return "$" + n.toFixed(2);
+        }
+
+        function formatCountry(code) {
+            if (!code) return "—";
+            if (code === "US") return "🇺🇸 US";
+            return code;
+        }
+
+        /* Flat sector → stock hierarchy (Finviz style, no industry sub-group) */
+        function buildHierarchy(stocks) {
+            const bySector = {};
+            stocks.forEach(s => {
+                const sec = s.sector || "Other";
+                (bySector[sec] ||= []).push(s);
+            });
+
+            return {
+                name: "Market",
+                type: "root",
+                children: Object.entries(bySector)
+                    .map(([sector, list]) => ({
+                        name: sector,
+                        type: "sector",
+                        children: list
+                            .slice()
+                            .sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0))
+                            .map(s => ({
+                                name: s.symbol,
+                                type: "stock",
+                                symbol: s.symbol,
+                                security: s.security,
+                                sector: s.sector,
+                                industry: s.industry,
+                                changePercent: s.changePercent,
+                                currentPrice: s.currentPrice,
+                                marketCap: Number(s.marketCap) || 0,
+                                marketCapDisplay: s.marketCapDisplay
+                            }))
+                    }))
+                    .sort((a, b) => {
+                        const sum = arr => arr.children.reduce((t, c) => t + c.marketCap, 0);
+                        return sum(b) - sum(a);
+                    })
+            };
+        }
+
+        function showCellTooltip(event, d, container, tooltip) {
+            const price = formatPrice(d.data.currentPrice) || "—";
+            const chgColor = getColor(d.data.changePercent);
+            const mcap = d.data.marketCapDisplay || formatMcapShort(d.data.marketCap);
+            tooltip.innerHTML =
+                `<div class="tt-symbol">${d.data.symbol}</div>` +
+                `<div class="tt-price-row">` +
+                    `<span class="tt-price">${price}</span>` +
+                    `<span class="tt-change" style="color:${chgColor}">${formatPct(d.data.changePercent)}</span>` +
+                `</div>` +
+                `<div class="tt-mcap">${mcap}</div>`;
+            tooltip.style.display = "block";
+            const rect = container.getBoundingClientRect();
+            let left = event.clientX - rect.left + 14;
+            let top = event.clientY - rect.top + 14;
+            tooltip.style.left = left + "px";
+            tooltip.style.top = top + "px";
+            requestAnimationFrame(() => {
+                const tt = tooltip.getBoundingClientRect();
+                if (left + tt.width > rect.width - 8) left = Math.max(8, left - tt.width - 28);
+                if (top + tt.height > rect.height - 8) top = Math.max(8, top - tt.height - 28);
+                tooltip.style.left = left + "px";
+                tooltip.style.top = top + "px";
+            });
+        }
+
+        function drawHeatmap(stocks) {
+            window._lastStocks = stocks;
+            const container = document.getElementById("heatmap");
+            const W = container.clientWidth || 1200;
+            const H = container.clientHeight || 650;
+
+            d3.select("#heatmap svg").remove();
+
+            const svg = d3.select("#heatmap")
+                .append("svg")
+                .attr("width", W)
+                .attr("height", H);
+
+            svg.append("rect")
+                .attr("width", W)
+                .attr("height", H)
+                .attr("fill", "#060a15");
+
+            const root = d3.hierarchy(buildHierarchy(stocks))
+                .sum(d => d.type === "stock" ? Math.max(d.marketCap || 0, 0) : 0)
+                .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+            d3.treemap()
+                .tile(d3.treemapSquarify.ratio(1))
+                .size([W, H])
+                .round(false)
+                .paddingOuter(8)
+                .paddingTop(d => d.data.type === "sector" ? 28 : 0)
+                .paddingInner(d => d.depth === 0 ? 14 : 3)
+                (root);
+
+            // Sector backgrounds + header bar
+            const sectors = svg.selectAll("g.sector-group")
+                .data(root.descendants().filter(d => d.data.type === "sector"))
+                .enter()
+                .append("g")
+                .attr("class", "sector-group")
+                .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+            sectors.append("rect")
+                .attr("width", d => Math.max(0, d.x1 - d.x0))
+                .attr("height", d => Math.max(0, d.y1 - d.y0))
+                .attr("rx", 5).attr("ry", 5)
+                .attr("fill", "rgba(13, 18, 36, 0.8)")
+                .attr("stroke", "rgba(255, 255, 255, 0.8)")
+                .attr("stroke-width", 1);
+
+            sectors.each(function(d) {
+                const g = d3.select(this);
+                const boxW = d.x1 - d.x0;
+                const boxH = d.y1 - d.y0;
+                if (boxH < 20 || boxW < 40) return;
+
+                g.append("rect")
+                    .attr("class", "sector-header-bg")
+                    .attr("x", 0).attr("y", 0)
+                    .attr("width", boxW)
+                    .attr("height", 22)
+                    .attr("fill", "rgba(6, 10, 21, 0.8)");
+
+                const label = (d.data.name || "").toUpperCase();
+                const maxChars = Math.max(3, Math.floor((boxW - 16) / 6.2));
+                g.append("text")
+                    .attr("class", "sector-label")
+                    .attr("x", 8)
+                    .attr("y", 15)
+                    .text(truncate(label, maxChars));
+            });
+
+            // Stock cells
+            const cell = svg.selectAll("g.cell-stock")
+                .data(root.leaves())
+                .enter()
+                .append("g")
+                .attr("class", "cell-stock")
+                .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+            cell.append("rect")
+                .attr("class", "cell-bg")
+                .attr("width", d => Math.max(0, d.x1 - d.x0))
+                .attr("height", d => Math.max(0, d.y1 - d.y0))
+                .attr("rx", 2).attr("ry", 2)
+                .attr("fill", d => getColor(d.data.changePercent));
+
+            const MIN_W = 22, MIN_H = 12;
+            const MIN_BOTH = 38, MIN_H_BOTH = 28;
+
+            cell.each(function(d) {
+                const cellW = d.x1 - d.x0;
+                const cellH = d.y1 - d.y0;
+                const g = d3.select(this);
+                if (cellW < MIN_W || cellH < MIN_H) return;
+
+                const symbol = d.data.symbol || "";
+                const changeVal = d.data.changePercent;
+                const changePct = formatPct(changeVal);
+                const cx = cellW / 2;
+
+                const showBoth = cellW >= MIN_BOTH && cellH >= MIN_H_BOTH;
+
+                const symbolSize = Math.min(Math.max(Math.sqrt(cellW * cellH) * 0.2, 8), 40);
+                const changeSize = Math.min(Math.max(symbolSize * 0.62, 6), 30);
+
+                if (showBoth) {
+                    appendCellStack(g, cx, cellH, [
+                        { cls: "cell-symbol", size: symbolSize, text: symbol },
+                        { cls: "cell-change", size: changeSize, text: changePct }
+                    ]);
+                } else {
+                    g.append("text").attr("class", "cell-symbol")
+                        .attr("x", cx).attr("y", cellH / 2)
+                        .attr("font-size", symbolSize + "px").text(symbol);
+                }
+            });
+
+            const tooltip = document.getElementById("tooltip");
+            cell
+                .on("mouseenter", function() { d3.select(this).raise(); })
+                .on("mousemove", function(event, d) {
+                    showCellTooltip(event, d, container, tooltip);
+                })
+                .on("mouseleave", () => { tooltip.style.display = "none"; })
+                .on("click", (event, d) => {
+                    tooltip.style.display = "none";
+                    openCompanyModal(d.data);
+                });
+        }
+
+        function setLoading(on) {
+            document.getElementById("loadingOverlay")?.classList.toggle("show", on);
+        }
+
+        async function loadHeatmap() {
+            setLoading(true);
+            try {
+                const response = await fetch("/api/stocks");
+                if (!response.ok) throw new Error("HTTP " + response.status);
+                const stocks = (await response.json())
+                    .filter(s => s.marketCap && s.marketCap > 0)
+                    .map(enrichStock);
+
+                if (!stocks.length) throw new Error("No stock data");
+
+                drawHeatmap(stocks);
+                updateStats(stocks);
+                document.getElementById("lastUpdate").textContent =
+                    "Updated " + new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+            } catch (error) {
+                console.error(error);
+                loadDemoData();
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function loadDemoData() {
+            const demo = [
+                { symbol: "NVDA", security: "NVIDIA Corp", sector: "Technology", industry: "Semiconductors", marketCap: 4.9e12, marketCapDisplay: "4.9T", currentPrice: 207.41, changePercent: -2.37 },
+                { symbol: "AAPL", security: "Apple Inc", sector: "Technology", industry: "Consumer Electronics", marketCap: 4.2e12, marketCapDisplay: "4.2T", currentPrice: 299.24, changePercent: 0.95 },
+                { symbol: "MSFT", security: "Microsoft Corp", sector: "Technology", industry: "Software", marketCap: 2.9e12, marketCapDisplay: "2.9T", currentPrice: 393.83, changePercent: -1.48 },
+                { symbol: "GOOGL", security: "Alphabet Inc", sector: "Communication Services", industry: "Internet", marketCap: 4.3e12, marketCapDisplay: "4.3T", currentPrice: 373.25, changePercent: 1.06 },
+                { symbol: "AMZN", security: "Amazon.com Inc", sector: "Consumer Cyclical", industry: "Internet Retail", marketCap: 2.5e12, marketCapDisplay: "2.5T", currentPrice: 246.0, changePercent: -0.01 },
+                { symbol: "META", security: "Meta Platforms", sector: "Communication Services", industry: "Social Media", marketCap: 1.4e12, marketCapDisplay: "1.4T", currentPrice: 600.21, changePercent: 1.13 },
+                { symbol: "TSLA", security: "Tesla Inc", sector: "Consumer Cyclical", industry: "Auto", marketCap: 1.5e12, marketCapDisplay: "1.5T", currentPrice: 404.66, changePercent: -1.58 },
+                { symbol: "JPM", security: "JPMorgan Chase", sector: "Financial Services", industry: "Banks", marketCap: 8.5e11, marketCapDisplay: "859B", currentPrice: 331.14, changePercent: 3.68 },
+                { symbol: "UNH", security: "UnitedHealth", sector: "Healthcare", industry: "Insurance", marketCap: 3.7e11, marketCapDisplay: "371B", currentPrice: 407.65, changePercent: -0.82 },
+                { symbol: "XOM", security: "Exxon Mobil", sector: "Energy", industry: "Oil & Gas", marketCap: 6.0e11, marketCapDisplay: "609B", currentPrice: 141.86, changePercent: 0.67 },
+                { symbol: "JNJ", security: "Johnson & Johnson", sector: "Healthcare", industry: "Pharma", marketCap: 5.7e11, marketCapDisplay: "580B", currentPrice: 235.18, changePercent: -0.2 },
+                { symbol: "PG", security: "Procter & Gamble", sector: "Consumer Defensive", industry: "Household", marketCap: 3.4e11, marketCapDisplay: "348B", currentPrice: 152.49, changePercent: 1.35 },
+                { symbol: "HD", security: "Home Depot", sector: "Consumer Cyclical", industry: "Retail", marketCap: 3.2e11, marketCapDisplay: "327B", currentPrice: 337.09, changePercent: 2.2 },
+                { symbol: "CVX", security: "Chevron", sector: "Energy", industry: "Oil & Gas", marketCap: 3.7e11, marketCapDisplay: "373B", currentPrice: 180.11, changePercent: -0.16 },
+                { symbol: "AMD", security: "AMD", sector: "Technology", industry: "Semiconductors", marketCap: 8.3e11, marketCapDisplay: "834B", currentPrice: 507.29, changePercent: -7.3 },
+                { symbol: "INTC", security: "Intel Corp", sector: "Technology", industry: "Semiconductors", marketCap: 6.2e11, marketCapDisplay: "626B", currentPrice: 117.05, changePercent: -8.45 },
+                { symbol: "BA", security: "Boeing", sector: "Industrials", industry: "Aerospace", marketCap: 1.7e11, marketCapDisplay: "173B", currentPrice: 227.49, changePercent: -0.64 },
+                { symbol: "CAT", security: "Caterpillar", sector: "Industrials", industry: "Machinery", marketCap: 4.1e11, marketCapDisplay: "419B", currentPrice: 945.46, changePercent: 1.23 },
+                { symbol: "LLY", security: "Eli Lilly", sector: "Healthcare", industry: "Pharma", marketCap: 1.0e12, marketCapDisplay: "1.0T", currentPrice: 1122.5, changePercent: -0.61 },
+                { symbol: "V", security: "Visa Inc", sector: "Financial Services", industry: "Payments", marketCap: 6.1e11, marketCapDisplay: "613B", currentPrice: 333.12, changePercent: 2.87 }
+            ].map(enrichStock);
+
+            drawHeatmap(demo);
+            updateStats(demo);
+            document.getElementById("lastUpdate").textContent = "Demo data";
+        }
+
+        /* ── Side Panel ── */
+        let candleChart = null;
+
+        function formatMarketCap(value) {
+            const n = Number(value);
+            if (!n || Number.isNaN(n)) return "—";
+            if (n >= 1e12) return "$" + (n / 1e12).toFixed(2) + "T";
+            if (n >= 1e9) return "$" + (n / 1e9).toFixed(2) + "B";
+            if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
+            return "$" + n.toLocaleString();
+        }
+
+        function setModalPriceQuote(data) {
+            const priceEl = document.getElementById("modalPrice");
+            const changeEl = document.getElementById("modalChange");
+            const price = data.currentPrice ?? data.current_price;
+            const change = data.changePercent ?? data.change_percent ?? data.change;
+
+            priceEl.textContent = (price != null && Number(price) > 0)
+                ? "$" + Number(price).toFixed(2) : "—";
+
+            if (change != null && !Number.isNaN(Number(change))) {
+                const chg = Number(change);
+                changeEl.textContent = formatPct(chg);
+                changeEl.style.color = getColor(chg);
+            } else {
+                changeEl.textContent = "—";
+                changeEl.style.color = "var(--text-muted)";
+            }
+        }
+
+        function setModalProfileSource(profile) {
+            const el = document.getElementById("modalProfileSrc");
+            if (!profile) {
+                el.innerHTML = '<span class="src-dot muted"></span> Profile unavailable';
+                return;
+            }
+            el.innerHTML = profile.liveData
+                ? '<span class="src-dot"></span> Live profile · Finnhub'
+                : '<span class="src-dot muted"></span> Basic profile from database';
+        }
+
+        function setChartSourceLabel(kind) {
+            const labels = {
+                stooq: "Stooq daily data",
+                demo: "Demo chart · Stooq unavailable",
+                unavailable: "Chart unavailable"
+            };
+            document.getElementById("modalChartSrc").textContent = labels[kind] || "";
+        }
+
+        function setLogo(profile) {
+            const wrap = document.getElementById("modalLogoWrap");
+            const sym = profile.symbol || "";
+            const sources = [profile.logo, LOGO_URL(sym)].filter(Boolean);
+
+            const fallback = () => {
+                wrap.innerHTML = `<div class="modal-logo-fallback">${(sym[0] || "?").toUpperCase()}</div>`;
+            };
+
+            if (!sources.length) { fallback(); return; }
+
+            let idx = 0;
+            const img = document.createElement("img");
+            img.className = "modal-logo";
+            img.alt = sym;
+            img.onerror = () => {
+                idx += 1;
+                if (idx < sources.length) img.src = sources[idx];
+                else fallback();
+            };
+            img.src = sources[0];
+            wrap.innerHTML = "";
+            wrap.appendChild(img);
+        }
+
+        async function openCompanyModal(data) {
+            const symbol = data.symbol;
+            const overlay = document.getElementById("companyModal");
+
+            document.getElementById("modalTicker").textContent = symbol;
+            document.getElementById("modalCompany").textContent = data.security || "";
+            document.getElementById("modalCountry").textContent = "—";
+            document.getElementById("modalCurrency").textContent = "—";
+            document.getElementById("modalIndustry").textContent = data.industry || "—";
+            document.getElementById("modalIpo").textContent = "—";
+            document.getElementById("modalMcap").textContent = data.marketCapDisplay || "—";
+            document.getElementById("modalExch2").textContent = "—";
+            document.getElementById("modalWeb").style.display = "none";
+            document.getElementById("modalChartSrc").textContent = "";
+            document.getElementById("modalProfileSrc").textContent = "";
+            setLogo({ symbol });
+            setModalPriceQuote(data);
+
+            overlay.classList.add("show");
+            document.body.style.overflow = "hidden";
+            document.getElementById("modalLoading").style.display = "flex";
+
+            const [profile, candlesResult] = await Promise.all([
+                fetch(`/api/stocks/${symbol}/profile`).then(r => r.ok ? r.json() : null).catch(() => null),
+                fetch(`/api/stocks/${symbol}/candles?months=6`)
+                    .then(async r => ({ ok: r.ok, data: r.ok ? await r.json() : [] }))
+                    .catch(() => ({ ok: false, data: [] }))
+            ]);
+
+            const candles = candlesResult.data;
+            const chartSource = candlesResult.ok && candles.length ? "stooq" : "unavailable";
+
+            setModalProfileSource(profile);
+
+            if (profile) {
+                document.getElementById("modalCompany").textContent = profile.name || data.security || symbol;
+                document.getElementById("modalCountry").textContent = formatCountry(profile.country);
+                document.getElementById("modalCurrency").textContent = profile.currency || "—";
+                document.getElementById("modalIndustry").textContent = profile.industry || data.industry || "—";
+                document.getElementById("modalIpo").textContent = profile.ipo || "—";
+                document.getElementById("modalMcap").textContent =
+                    profile.marketCapDisplay || formatMarketCap(profile.marketCap);
+                document.getElementById("modalExch2").textContent = profile.exchange || "—";
+                if (profile.weburl) {
+                    const link = document.getElementById("modalWeb");
+                    link.href = profile.weburl;
+                    link.style.display = "inline-block";
+                }
+                setLogo(profile);
+            }
+
+            renderCandles(candles, chartSource);
+            document.getElementById("modalLoading").style.display = "none";
+        }
+
+        function renderCandles(candles, chartSource = "unavailable") {
+            const el = document.getElementById("candleChart");
+            if (candleChart) { candleChart.remove(); candleChart = null; }
+
+            if (!Array.isArray(candles) || !candles.length || typeof LightweightCharts === "undefined") {
+                setChartSourceLabel(chartSource === "stooq" ? "demo" : "unavailable");
+                return;
+            }
+
+            candleChart = LightweightCharts.createChart(el, {
+                width: el.clientWidth,
+                height: el.clientHeight,
+                layout: {
+                    background: { color: "transparent" },
+                    textColor: "#94a3b8",
+                    fontFamily: FONT_MONO
+                },
+                grid: {
+                    vertLines: { color: "rgba(255,255,255,0.04)" },
+                    horzLines: { color: "rgba(255,255,255,0.05)" }
+                },
+                rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
+                timeScale: { borderColor: "rgba(255,255,255,0.08)", timeVisible: false },
+                crosshair: { mode: 0 }
+            });
+
+            const series = candleChart.addCandlestickSeries({
+                upColor: "#22c55e",
+                downColor: "#ef4444",
+                borderVisible: false,
+                wickUpColor: "#22c55e",
+                wickDownColor: "#ef4444"
+            });
+
+            series.setData(candles.map(c => ({
+                time: c.time, open: c.open, high: c.high, low: c.low, close: c.close
+            })));
+
+            candleChart.timeScale().fitContent();
+            setChartSourceLabel("stooq");
+        }
+
+        function closeCompanyModal() {
+            document.getElementById("companyModal").classList.remove("show");
+            document.body.style.overflow = "";
+            if (candleChart) { candleChart.remove(); candleChart = null; }
+        }
+
+        document.addEventListener("keydown", e => {
+            if (e.key === "Escape") closeCompanyModal();
+        });
+
+        window.addEventListener("resize", () => {
+            if (window._lastStocks?.length) drawHeatmap(window._lastStocks);
+            if (candleChart) {
+                const el = document.getElementById("candleChart");
+                candleChart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+            }
+        });
+
+        window.addEventListener("DOMContentLoaded", loadHeatmap);
+    </script>
+</body>
+</html>

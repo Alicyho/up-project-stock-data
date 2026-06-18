@@ -1,0 +1,5 @@
+SELECT * FROM public.sp500_top300
+
+ALTER TABLE sp500_top300 
+ADD COLUMN IF NOT EXISTS current_price NUMERIC(15,4);
+
