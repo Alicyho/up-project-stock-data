@@ -30,7 +30,7 @@ PostgreSQL stock_db.sp500_top300
         ↓
 Spring Boot API (/api/stocks)
         ↓
-src/main/resources/static/heatmap.html
+src/main/resources/static/index.html
 ```
 
 ## Notes

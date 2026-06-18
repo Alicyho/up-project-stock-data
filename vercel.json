@@ -1,7 +1,5 @@
 {
-    "rewrites": [
-      { "source": "/(.*)", "destination": "/heatmap.html" }
-    ],
-    "cleanUrls": true,
-    "trailingSlash": false
-  }
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "trailingSlash": false
+}
