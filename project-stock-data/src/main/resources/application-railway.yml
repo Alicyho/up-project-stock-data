@@ -8,7 +8,8 @@ spring:
       # Allow the app to start even if Supabase is slow or temporarily unreachable
       initialization-fail-timeout: -1
       minimum-idle: 0
-      connection-timeout: 60000
+      connection-timeout: 15000
+      validation-timeout: 5000
       maximum-pool-size: 5
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect

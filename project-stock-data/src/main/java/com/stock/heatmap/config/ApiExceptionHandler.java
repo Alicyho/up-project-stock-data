@@ -16,8 +16,8 @@ public class ApiExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
-    @ExceptionHandler(DataAccessException.class)
-    public ResponseEntity<Map<String, Object>> handleDataAccess(DataAccessException ex) {
+    @ExceptionHandler({org.springframework.transaction.TransactionException.class, DataAccessException.class})
+    public ResponseEntity<Map<String, Object>> handleDataAccess(Exception ex) {
         log.error("Database error", ex);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorBody(
                 "database_error",
