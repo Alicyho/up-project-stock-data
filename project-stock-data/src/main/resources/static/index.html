@@ -1018,7 +1018,8 @@
         const FONT_UI = '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         const FONT_MONO = '"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace';
         const LOGO_URL = sym => `https://financialmodelingprep.com/image-stock/${sym}.png`;
-        // 本機 Spring Boot 或 Vercel /api proxy 時留空；若 API 在不同網域，改為 "https://your-backend.example.com"
+        // 留空 = 使用同網域 /api（Vercel proxy 或本機 Spring Boot）
+        // 直接打 Railway 時改為 "https://up-project-stock-data-production.up.railway.app"
         const API_BASE = "";
         const apiUrl = path => `${API_BASE}${path}`;
 
