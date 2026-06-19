@@ -6,3 +6,18 @@ dockerfilePath = "Dockerfile"
 healthcheckPath = "/api/stocks"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
+
+# Railway Variables (set in Dashboard → Service → Variables):
+#
+# Option A – link Railway PostgreSQL (recommended):
+#   Add PostgreSQL via + New → Database → PostgreSQL, then on THIS service add:
+#   DATABASE_URL = ${{Postgres.DATABASE_URL}}
+#   The app auto-converts DATABASE_URL → SPRING_DATASOURCE_* at startup.
+#
+# Option B – explicit JDBC variables:
+#   SPRING_DATASOURCE_URL      = jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}
+#   SPRING_DATASOURCE_USERNAME = ${{Postgres.PGUSER}}
+#   SPRING_DATASOURCE_PASSWORD = ${{Postgres.PGPASSWORD}}
+#
+# Optional:
+#   FINNHUB_API_KEY = your-key

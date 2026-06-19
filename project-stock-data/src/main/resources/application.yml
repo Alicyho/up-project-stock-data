@@ -2,7 +2,8 @@ spring:
   application:
     name: stock-data-service
 
-  # 資料庫連線設定（Docker 會用環境變數覆寫）
+  # 資料庫連線設定
+  # 優先順序：SPRING_DATASOURCE_* > DATABASE_URL / PG*（Railway 自動注入）> 本機預設
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/stock_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
