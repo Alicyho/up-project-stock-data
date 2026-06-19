@@ -1,0 +1,9 @@
+.git
+.env
+*.ipynb
+*.csv
+target/
+docker-compose.yml
+vercel.json
+docker/
+未命名.sql
