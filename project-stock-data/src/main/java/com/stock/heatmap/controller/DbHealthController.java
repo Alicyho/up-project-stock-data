@@ -20,6 +20,7 @@ public class DbHealthController {
     @GetMapping("/api/health/db")
     public Map<String, Object> databaseHealth() {
         Map<String, Object> body = new LinkedHashMap<>();
+        body.put("hint", "Use Supabase Session pooler port 5432, username postgres.<project-ref>, region ap-northeast-1");
         try (Connection connection = dataSource.getConnection()) {
             body.put("status", "UP");
             body.put("database", connection.getCatalog());
