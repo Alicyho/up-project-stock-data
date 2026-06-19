@@ -1,9 +1,0 @@
-/Users/alice/stock-heatmap-project/project-stock-data/src/main/java/com/stock/heatmap/StockDataApplication.java
-/Users/alice/stock-heatmap-project/project-stock-data/src/main/java/com/stock/heatmap/controller/StockController.java
-/Users/alice/stock-heatmap-project/project-stock-data/src/main/java/com/stock/heatmap/dto/Candle.java
-/Users/alice/stock-heatmap-project/project-stock-data/src/main/java/com/stock/heatmap/dto/CompanyProfile.java
-/Users/alice/stock-heatmap-project/project-stock-data/src/main/java/com/stock/heatmap/entity/Stock.java
-/Users/alice/stock-heatmap-project/project-stock-data/src/main/java/com/stock/heatmap/repository/StockRepository.java
-/Users/alice/stock-heatmap-project/project-stock-data/src/main/java/com/stock/heatmap/service/CandleService.java
-/Users/alice/stock-heatmap-project/project-stock-data/src/main/java/com/stock/heatmap/service/PriceUpdateService.java
-/Users/alice/stock-heatmap-project/project-stock-data/src/main/java/com/stock/heatmap/service/StockService.java

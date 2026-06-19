@@ -1,7 +1,5 @@
 target/
-.mvn/
-mvnw
-mvnw.cmd
 .vscode/
 notebooks/
 DATA_PIPELINE.md
+*.iml

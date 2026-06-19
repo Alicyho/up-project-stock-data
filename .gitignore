@@ -1,5 +1,6 @@
 .env
 target/
+project-stock-data/target/
 .idea/
 *.iml
 .DS_Store
