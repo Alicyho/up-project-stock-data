@@ -1,0 +1,18 @@
+server:
+  address: 0.0.0.0
+  port: ${PORT:8080}
+
+spring:
+  datasource:
+    hikari:
+      # Allow the app to start even if Supabase is slow or temporarily unreachable
+      initialization-fail-timeout: -1
+      minimum-idle: 0
+      connection-timeout: 60000
+      maximum-pool-size: 5
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        boot:
+          allow_jdbc_metadata_access: false

@@ -10,4 +10,5 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENV SPRING_PROFILES_ACTIVE=railway
+ENTRYPOINT ["java", "-Djava.net.preferIPv4Stack=true", "-Xmx384m", "-jar", "app.jar"]
