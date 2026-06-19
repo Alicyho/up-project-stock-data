@@ -5,6 +5,9 @@ import com.stock.heatmap.dto.CompanyProfile;
 import com.stock.heatmap.entity.Stock;
 import com.stock.heatmap.service.CandleService;
 import com.stock.heatmap.service.StockService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,6 +23,8 @@ import java.util.List;
 @RequestMapping("/api/stocks")
 public class StockController {
 
+    private static final Logger log = LoggerFactory.getLogger(StockController.class);
+
     private final StockService stockService;
     private final CandleService candleService;
 
@@ -30,7 +35,12 @@ public class StockController {
 
     @GetMapping
     public List<Stock> getAllStocks() {
-        return stockService.getAllStocks();
+        try {
+            return stockService.getAllStocks();
+        } catch (DataAccessException ex) {
+            log.error("Failed to load stocks from database", ex);
+            return List.of();
+        }
     }
 
     @GetMapping("/{symbol}/profile")

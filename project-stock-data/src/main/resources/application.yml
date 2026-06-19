@@ -28,6 +28,10 @@ spring:
 server:
   address: 0.0.0.0
   port: ${PORT:8080}
+  error:
+    whitelabel:
+      enabled: false
+    include-message: always
 
 # Finnhub 公司資料 API 設定
 # 申請免費 key：https://finnhub.io/  → Dashboard 取得 API Key
