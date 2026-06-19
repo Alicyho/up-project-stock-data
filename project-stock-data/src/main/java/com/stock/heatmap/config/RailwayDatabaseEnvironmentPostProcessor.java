@@ -42,6 +42,11 @@ public class RailwayDatabaseEnvironmentPostProcessor implements EnvironmentPostP
     }
 
     private void applyDatabaseUrl(String databaseUrl, Map<String, Object> props) {
+        if (databaseUrl.startsWith("jdbc:")) {
+            props.put(PROP_URL, databaseUrl);
+            return;
+        }
+
         try {
             String normalized = databaseUrl.replaceFirst("^postgres://", "postgresql://");
             URI uri = new URI(normalized);

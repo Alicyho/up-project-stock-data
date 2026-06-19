@@ -8,6 +8,9 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/stock_db}
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:Admin12345}
+    hikari:
+      connection-timeout: 60000
+      maximum-pool-size: 5
 
   # JPA 設定
   jpa:
